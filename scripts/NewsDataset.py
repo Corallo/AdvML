@@ -1,11 +1,3 @@
-import os
-os.environ['MLCOMP_DATASETS_HOME']='Data/20news-18828'
-
-
-
-from time import time
-import sys
-import os
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
@@ -19,13 +11,15 @@ from sklearn.metrics import classification_report
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.feature_extraction.text import CountVectorizer
 import pandas as pd
 
 import nltk
 nltk.download('punkt')
 
-
+#subset: choose between train, test or all
+#category: for example comp.os.ms-windows.misc
+#dimensions: number of relevant words to use
+#plot_tf_idf: if true plot the tf-idf summed value for each word
 def get_20newsgroup_tf_idf(subset, category, dimensions, plot_tf_idf = False):
 
     newsgroups_set = fetch_20newsgroups(subset='all', categories=[category])
