@@ -19,12 +19,17 @@ except LookupError:
     nltk.download('stopwords')
 
 #subset: choose between train, test or all
-#categories: list of wanted categories 
+#categories: list of wanted categories
 #dimensions: number of relevant words to use
 #plot_tf_idf: if true plot the tf-idf summed value for each word
 def get_20newsgroup_tf_idf(subset, categories, dimensions, plot_tf_idf = False):
     newsgroups_set = fetch_20newsgroups(subset='all', categories=categories)
-    newsgroups_set.data = list(set(newsgroups_set.data))
+    #newsgroups_set.data = list(set(newsgroups_set.data))
+
+    temp_documents = [(newsgroups_set.target[idx], val) for idx, val in enumerate(newsgroups_set.data)]
+    temp_documents = list(set(temp_documents))
+    targets = list(map(lambda a : a[0], temp_documents))
+    newsgroups_set.data = list(map(lambda a : a[1], temp_documents))
     stop_words = stopwords.words('english')
     vectorizer = TfidfVectorizer(stop_words = stop_words)
     vectors = vectorizer.fit_transform(newsgroups_set.data)
@@ -48,7 +53,7 @@ def get_20newsgroup_tf_idf(subset, categories, dimensions, plot_tf_idf = False):
         X = np.arange(0, len(ordered_tfidf), 1)
         plt.plot(X, ordered_tfidf)
         plt.show()
-        
-    return matrix_tf_idf, targets, newsgroups_set.target_names
 
-newsgroup_tf_idf, targets, targets_ids = get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
+    return matrix_tf_idf, targets
+
+newsgroup_tf_idf, targets_ids = get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
