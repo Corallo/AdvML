@@ -56,19 +56,24 @@ def TestResults(inputs,targets,results,iterations):
 	print(original.score(inputs,targets))
 
 	print("Start classifing with kernel")
-	new = LogisticRegression(max_iter=iterations).fit(V, targets)
-	print(new.score(V,targets))
+	new = LogisticRegression(max_iter=iterations).fit(results, targets)
+	print(new.score(results,targets))
 	print("Input features:")
 	print(inputs)
 	print("Post-kernel features:")
-	print(V)
+	print(results)
 	print("Prediction output with original features:")
 	print(original.predict(inputs))
 	print("Predicion output with post-kernel features:")
-	print(new.predict(V))
+	prediction=new.predict(results)
+	print(prediction)
 	print("Correct output:")
 	print(targets)
+	#print("Accuracy of classification pre kernel:")
 
+	print("Accuracy of classification post kernel:")
+	print(np.sum(np.where(targets==prediction,1,0)))
+	return (prediction)
 def generateAffinityMatrix(inputs):
     N = inputs.shape[0]
     affinity_matrix = np.zeros((N,N))
@@ -108,13 +113,13 @@ def normalizeRow(eigen_vectors):
 
 
 
-#inputs,targets=loadDataset('irisX.txt','irisY.txt')		#load data from file
-inputs,targets=generateDataset()
+inputs,targets=loadDataset('irisX_small.txt','irisY_small.txt')		#load data from file
+#inputs,targets=generateDataset()
 #inputs,targets=load_digits(n_class=10, return_X_y=True)
 inputs,targets=randomize(inputs,targets)
 N=inputs.shape[0]
 print(N) 
-k = 3 #Desired NUMBER OF CLUSTERS (small k)
+k = 2 #Desired NUMBER OF CLUSTERS (small k)
 K=generateAffinityMatrix(inputs)  #(uppercase K) STEP 1 
 
 #w,V=np.linalg.eig(K) Here i was checking that only the first k autovalues are > 1 and this is true for all the dataset i tested.
@@ -130,24 +135,43 @@ V=normalizeRow(V) #Step 4
 #print(V)
 #print(targets)
 
-TestResults(inputs,targets,V,1000) #Test the results
+prediction=TestResults(inputs,targets,V,1000) #Test the results
 
 #Output the new points representation (does only works with 3D points)
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-#ax.scatter(V.transpose()[0], V.transpose()[1],V.transpose()[2])
-ax.scatter(V.transpose()[0], V.transpose()[1])
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
-plt.show()
+#fig = plt.figure()
+#ax = fig.add_subplot(111, projection='3d')
+#
+##ax.scatter(V.transpose()[0], V.transpose()[1],V.transpose()[2])
+#ax.scatter(V.transpose()[0], V.transpose()[1])
+#ax.set_xlabel('X Label')
+#ax.set_ylabel('Y Label')
+#ax.set_zlabel('Z Label')
+#plt.show()
 
 #plt.figure()
 #plt.plot(inputs.transpose()[0],inputs.transpose()[1],'rs')
 #plt.show()
 #plt.plot(np.array(V.transpose()[0])[0],np.array(V.transpose()[1])[0],'bs')
+print("printing results")
+red=[]
+blue=[]
+for i in range(N):
+	line= V[i]
+	if(prediction[i]==0):
 
+		red.append(line)
+	else:
+		blue.append(line)
 
+for c in prediction:
+    idx_red = np.where(prediction==0)[0]
+    idx_blue = np.where(prediction==1)[0]
 
+red = inputs[idx_red,:]
+blue = inputs[idx_blue,:]
 
+V=np.array(V)
+plt.plot(V[:,0],V[:,1],'rs')
+plt.figure()
+plt.plot(red[:,0],red[:,1],'rs',blue[:,0],blue[:,1],'bs')
+plt.show()
