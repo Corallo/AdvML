@@ -14,7 +14,7 @@ from new_dataset import get_20newsgroup_tf_idf
 import progressbar
 import time
 from sklearn.cluster import KMeans
-def radialBasisFunctionKernel(x, y, sigma=5):
+def radialBasisFunctionKernel(x, y, sigma=0.55):
     return np.exp(-np.linalg.norm(x - y) / (2 * sigma**2))
 
 
@@ -143,7 +143,7 @@ def plotOutput(inputs, prediction):
 
 
 def transfer_function(L, k, function):
-    t = 3
+    t = 5
     w, V = np.linalg.eig(L)
     w = np.diag(w)
     if function == "linear":
@@ -228,7 +228,7 @@ def TestWithSVM(inputs,targets,results):
 def computeScore(out,targets):
     return np.sum(np.where(out==targets,1,0))/len(targets)
 
-def FinalTest(inputs,targets,results):
+def DigitTest(inputs,targets,results):
     print("Testing...")
     original_score=np.zeros(50)
     kernel_score=np.zeros(50)
@@ -241,13 +241,7 @@ def FinalTest(inputs,targets,results):
 
         new = svm.SVC(kernel='linear').fit(kernel_train, train_targets)
         kernel_score[x]=new.score(kernel_test, test_targets)
-    
-       # new = 
-       # out=KMeans(n_clusters=2, random_state=0).fit_predict(results)
-       # score=computeScore(out,test_targets)
-       # if score < 0.5:
-       #     score = 1-score
-       # kernel_score[x]=score
+
     print("\n")
 
     print("Average score of normal SVM:")
@@ -256,13 +250,42 @@ def FinalTest(inputs,targets,results):
     print(np.average(kernel_score))
     return original_score, kernel_score
 
+def testNews(inputs, targets, kernel):
+    print("Testing..")
+    original_score=np.zeros(100)
+    kernel_score=np.zeros(100)
+    myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
+    target_sum=0
+    for n in myrange: 
+        print("\n\nUsing "+str(n)+" train points")
+        for x in range(100): #run 100 times
+            while(target_sum==n or target_sum==0): #be sure that you have selected at least 1 point for each cluster
+                train_idx=random.sample(range(0, len(targets)), n)
+                train_targets = np.take(targets,train_idx)
+                target_sum=sum(train_targets)
 
+            
+            train_points = np.take(inputs,train_idx,axis=0)
+            train_kernel = np.take(kernel, train_idx,axis=0)
+
+            original = svm.SVC().fit(train_points, train_targets)
+            original_score[x]=original.score(inputs, targets)
+            
+    
+            new = svm.SVC(kernel='linear').fit(train_kernel, train_targets)
+            kernel_score[x]=new.score(kernel, targets)
+
+        
+        print("Average score of normal SVM:")
+        print(np.average(original_score))
+        print("Average score of cluster kernel:")
+        print(np.average(kernel_score))
 
 #inputs, targets = make_circles(n_samples=200, shuffle=True, noise=None, random_state=150, factor=0.4)
 # inputs,targets=loadDataset('irisX_small.txt','irisY_small.txt') load data from file
 # inputs,targets=generateDataset()
-inputs,targets=generateDigitsDataset()
-#inputs,targets=get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
+#inputs,targets=generateDigitsDataset()
+inputs,targets=get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
 #inputs,targets=load_digits(n_class=10, return_X_y=True)
 inputs=np.array(inputs)
 targets=np.array(targets)
@@ -290,8 +313,8 @@ print("Kernel done")
 
 #standard_prediction, prediction = TestResults(inputs, targets, K_new, 1000)  # Test the results
 #standard_prediction, prediction = TestWithSVM(inputs,targets,K_new)
-
-FinalTest(inputs,targets,K_new)
+#FinalTest(inputs,targets,K_new)
+testNews(inputs,targets,K_new)
 #plotOutput(inputs, standard_prediction)
 #plotOutput(inputs, prediction)
 #plt.show()
