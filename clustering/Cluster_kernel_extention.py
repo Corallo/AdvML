@@ -11,6 +11,9 @@ from sklearn.datasets import make_circles
 from sklearn import svm
 from digit_datasets import generateDigitsDataset
 from new_dataset import get_20newsgroup_tf_idf
+import progressbar
+import time
+from sklearn.cluster import KMeans
 def radialBasisFunctionKernel(x, y, sigma=5):
     return np.exp(-np.linalg.norm(x - y) / (2 * sigma**2))
 
@@ -189,7 +192,14 @@ def transformDMatrix(L):
 def transformKMatrix(D_new,L_new):
 	K_new = fractional_matrix_power(D_new,0.5).dot(L_new).dot(fractional_matrix_power(D_new,0.5))
 	return K_new
-
+def generateSubset(inputs,targets,results,x):
+    train_input=inputs[40*(x-1):40*x,:]
+    test_input=np.delete(inputs,slice(40*(x-1),40*x),0)
+    train_targets = targets[40*(x-1):40*x]
+    test_targets= np.delete(targets,slice(40*(x-1),40*x),0)
+    train_results = results[40*(x-1):40*x,:]
+    test_results = np.delete(results,slice(40*(x-1),40*x),0)
+    return train_input, train_targets, train_results, test_input,test_targets, test_results
 def TestWithSVM(inputs,targets,results):
     train_points, test_points = partition(inputs, 0.2)
     train_targets, test_targets = partition(targets, 0.2)
@@ -215,6 +225,36 @@ def TestWithSVM(inputs,targets,results):
 
     return (original.predict(inputs), new.predict(results))
 
+def computeScore(out,targets):
+    return np.sum(np.where(out==targets,1,0))/len(targets)
+
+def FinalTest(inputs,targets,results):
+    print("Testing...")
+    original_score=np.zeros(50)
+    kernel_score=np.zeros(50)
+    for x in progressbar.progressbar(range(50)):
+        #print(x)
+        train_points, train_targets, kernel_train, test_points, test_targets, kernel_test = generateSubset(inputs,targets,results,x+1)
+        original = svm.SVC(kernel='linear').fit(train_points, train_targets)
+        original_score[x]=original.score(test_points, test_targets)
+        
+
+        new = svm.SVC(kernel='linear').fit(kernel_train, train_targets)
+        kernel_score[x]=new.score(kernel_test, test_targets)
+    
+       # new = 
+       # out=KMeans(n_clusters=2, random_state=0).fit_predict(results)
+       # score=computeScore(out,test_targets)
+       # if score < 0.5:
+       #     score = 1-score
+       # kernel_score[x]=score
+    print("\n")
+
+    print("Average score of normal SVM:")
+    print(np.average(original_score))
+    print("Average score of cluster kernel:")
+    print(np.average(kernel_score))
+    return original_score, kernel_score
 
 
 
@@ -227,25 +267,46 @@ inputs,targets=generateDigitsDataset()
 inputs=np.array(inputs)
 targets=np.array(targets)
 inputs, targets = randomize(inputs, targets)
-print(np.shape(inputs))
-print(np.shape(targets))
+
+print("Start")
 
 N = inputs.shape[0]
 #print(N)
 k = 2  # Desired NUMBER OF CLUSTERS (small k)
+print("computing K")
 K = generateAffinityMatrix(inputs)  # (uppercase K) STEP 1
+print("computing D")
 D = generateDMatrix(K)  # STEP 2
+print("computing L")
 L = generateLMatrix(K, D)
+print("computing L new")
 L_new = transformL(L)
+print("computing D new")
 D_new = transformDMatrix(L)
+print("computing K new")
 K_new = transformKMatrix(D_new,L_new)
+print("Kernel done")
 # plt.plot(V[:,0],V[:,1],'rs')
 
 #standard_prediction, prediction = TestResults(inputs, targets, K_new, 1000)  # Test the results
-standard_prediction, prediction = TestWithSVM(inputs,targets,K_new)
-plotOutput(inputs, standard_prediction)
-plotOutput(inputs, prediction)
-plt.show()
+#standard_prediction, prediction = TestWithSVM(inputs,targets,K_new)
+
+FinalTest(inputs,targets,K_new)
+#plotOutput(inputs, standard_prediction)
+#plotOutput(inputs, prediction)
+#plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
 #print(np.shape(K_new))
 # Output the new points representation (does only works with 3D points)
 #fig = plt.figure()
