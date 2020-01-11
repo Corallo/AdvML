@@ -255,13 +255,15 @@ def testNews(inputs, targets, kernel):
     original_score=np.zeros(100)
     kernel_score=np.zeros(100)
     myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
+
     for n in myrange: 
         print("\n\nUsing "+str(n)+" train points")
-        for x in range(100): #run 100 ti
-		target_sum=0
+        for x in range(100): #run 100 times
+            target_sum=0
             while(target_sum==n or target_sum==0): #be sure that you have selected at least 1 point for each cluster
                 train_idx=random.sample(range(0, len(targets)), n)
                 train_targets = np.take(targets,train_idx)
+                print(train_targets)
                 target_sum=sum(train_targets)
 
             
