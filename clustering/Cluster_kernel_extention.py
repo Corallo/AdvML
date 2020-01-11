@@ -263,7 +263,6 @@ def testNews(inputs, targets, kernel):
             while(target_sum==n or target_sum==0): #be sure that you have selected at least 1 point for each cluster
                 train_idx=random.sample(range(0, len(targets)), n)
                 train_targets = np.take(targets,train_idx)
-                print(train_targets)
                 target_sum=sum(train_targets)
 
             
