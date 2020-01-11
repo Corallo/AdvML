@@ -265,7 +265,7 @@ def random_walk(data,kneighbors=5,sigma=1, t=3, max_iter=50):#pairwise distance
 # In[14]:
 
 
-random_walk(data,kneighbors=5,sigma=1,t=3)
+random_walk(data,actual_target,kneighbors=5,sigma=1,t=3)
 
 
 # In[ ]:
