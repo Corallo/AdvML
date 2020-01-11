@@ -186,7 +186,7 @@ def transfer_function(L, k, function):
                     w[i, j] = w[i, j]**p
                 else:
                     w[i, j] = w[i, j]**q
-                    
+
 
     return w
 
@@ -268,13 +268,7 @@ def testNews(inputs, targets, kernel):
     original_score=np.zeros(100)
     kernel_score=np.zeros(100)
     myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
-<<<<<<< Updated upstream
-
     for n in myrange:
-=======
-    target_sum=0
-    for n in myrange:
->>>>>>> Stashed changes
         print("\n\nUsing "+str(n)+" train points")
         for x in range(100): #run 100 times
             target_sum=0
