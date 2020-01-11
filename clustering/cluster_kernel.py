@@ -1,4 +1,4 @@
-import random , math
+import random
 import numpy as np
 from sklearn.datasets import load_iris
 from sklearn.datasets import load_digits
@@ -6,12 +6,10 @@ from sklearn.linear_model import LogisticRegression
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import matplotlib.pyplot as plt
 from scipy.linalg import fractional_matrix_power
+from scipy.sparse.linalg import eigs
 
-def radialBasisFunctionKernel(x,y):
-	sigma=4
-	X=np.array(x)
-	Y=np.array(y)
-	return np.exp(- np.linalg.norm(X-Y)/(2*sigma**2))
+def radialBasisFunctionKernel(x,y, sigma=4):
+	return np.exp(- np.linalg.norm(x-y)/(2*sigma**2))
 
 def loadDataset(fileX, fileY):
 	x = np.genfromtxt(fileX, delimiter=',')
@@ -49,6 +47,7 @@ def generateDataset():
 		 -np.ones(classB.shape[0])))
 	return inputs, targets
 
+
 def TestResults(inputs,targets,results,iterations):
 	print("Testing...")
 	print("Start classifing without kernel")
@@ -57,76 +56,72 @@ def TestResults(inputs,targets,results,iterations):
 	print(original.score(inputs,targets))
 
 	print("Start classifing with kernel")
-	new = LogisticRegression( max_iter=iterations).fit(V, targets)
-	print(new.score(V,targets))
+	new = LogisticRegression(max_iter=iterations).fit(results, targets)
+	print(new.score(results,targets))
 	print("Input features:")
 	print(inputs)
 	print("Post-kernel features:")
-	print(V)
+	print(results)
 	print("Prediction output with original features:")
 	print(original.predict(inputs))
 	print("Predicion output with post-kernel features:")
-	print(new.predict(V))
+	prediction=new.predict(results)
+	print(prediction)
 	print("Correct output:")
 	print(targets)
+	#print("Accuracy of classification pre kernel:")
 
+	print("Accuracy of classification post kernel:")
+	print(np.sum(np.where(targets==prediction,1,0)))
+	return (prediction)
 def generateAffinityMatrix(inputs):
-	N=inputs.shape[0]
-	Affinity_Matrix = []
-	for i in range(N):
-		Affinity_Matrix.append(np.zeros(N))
-
-
-	for i in range(N):
-		for j in range(N):
-			Affinity_Matrix[i][j]=radialBasisFunctionKernel(inputs[i],inputs[j])
-			if(i==j):
-				Affinity_Matrix[i][j]=0
-	K=np.matrix(Affinity_Matrix)
-	return K
+    N = inputs.shape[0]
+    affinity_matrix = np.zeros((N,N))
+    
+    for idx_row in range(N):
+        for idx_col in range(N):
+            if idx_row != idx_col:
+                affinity_matrix[idx_row,idx_col] = radialBasisFunctionKernel(inputs[idx_row], inputs[idx_col])
+                
+    return affinity_matrix
 
 def generateDMatrix(K):
-	N=len(K)
-	D= []
-	for i in range(N):
-		D.append(np.zeros(N))
-		D[i][i]=np.sum(K[i])
-	D=np.matrix(D)
-	return D
+    N = len(K)
+    D = np.zeros((N,N))
+
+    np.fill_diagonal(D, np.sum(K, axis = 0))
+    
+    return D
 
 def generateLMatrix(K,D):
-	D=fractional_matrix_power(D,-0.5)
-	L=D*K*D
-	L=np.matrix(L)
+	D_= fractional_matrix_power(D,-0.5)
+	L = D_ @ K @ D_  # Instead of multiplication
 	return L
 
-def getEigenvectorMatrix(L,k):
-	w,V=np.linalg.eig(L)
-	V=V[:k]
-	V=np.matrix(V)
-	V=V.transpose()
-	return V
-def normalizeRow(V):
-	for i in range(N):
-		norm=np.linalg.norm(V[i])
-		V[i]=V[i]/norm
-	#for i in range(N): Wanted to check that the sum of the square of the row was 1
-	#s=0
-	#for j in range(k):
-	#s=s+V[i,j]**2
-	#print(s)
-	return V
+def getEigenvectorMatrix(L,k):    
+	w,V = eigs(L)
+	V_filtered = V[:,:k]
+
+	return V_filtered.real
+
+
+def normalizeRow(eigen_vectors):
+    normalizer = np.linalg.norm(eigen_vectors, axis = 1) # one value per row 
+    eigen_vectors_norm = eigen_vectors/normalizer[:,None]
+     
+    return eigen_vectors_norm
 
 
 
-inputs,targets=loadDataset('irisX.txt','irisY.txt')		#load data from file
+inputs,targets=loadDataset('irisX_small.txt','irisY_small.txt')		#load data from file
 #inputs,targets=generateDataset()
 #inputs,targets=load_digits(n_class=10, return_X_y=True)
 inputs,targets=randomize(inputs,targets)
 N=inputs.shape[0]
 print(N) 
-k = 3 #Desired NUMBER OF CLUSTERS (small k)
+k = 2 #Desired NUMBER OF CLUSTERS (small k)
 K=generateAffinityMatrix(inputs)  #(uppercase K) STEP 1 
+
 #w,V=np.linalg.eig(K) Here i was checking that only the first k autovalues are > 1 and this is true for all the dataset i tested.
 #print(w[:3])
 #print(Affinity_Matrix)
@@ -140,23 +135,43 @@ V=normalizeRow(V) #Step 4
 #print(V)
 #print(targets)
 
-TestResults(inputs,targets,V,1000) #Test the results
+prediction=TestResults(inputs,targets,V,1000) #Test the results
 
 #Output the new points representation (does only works with 3D points)
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-ax.scatter(V.transpose()[0], V.transpose()[1],V.transpose()[2])
+#fig = plt.figure()
+#ax = fig.add_subplot(111, projection='3d')
+#
+##ax.scatter(V.transpose()[0], V.transpose()[1],V.transpose()[2])
 #ax.scatter(V.transpose()[0], V.transpose()[1])
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
-plt.show()
+#ax.set_xlabel('X Label')
+#ax.set_ylabel('Y Label')
+#ax.set_zlabel('Z Label')
+#plt.show()
+
 #plt.figure()
 #plt.plot(inputs.transpose()[0],inputs.transpose()[1],'rs')
 #plt.show()
 #plt.plot(np.array(V.transpose()[0])[0],np.array(V.transpose()[1])[0],'bs')
+print("printing results")
+red=[]
+blue=[]
+for i in range(N):
+	line= V[i]
+	if(prediction[i]==0):
 
+		red.append(line)
+	else:
+		blue.append(line)
 
+for c in prediction:
+    idx_red = np.where(prediction==0)[0]
+    idx_blue = np.where(prediction==1)[0]
 
+red = inputs[idx_red,:]
+blue = inputs[idx_blue,:]
 
+V=np.array(V)
+plt.plot(V[:,0],V[:,1],'rs')
+plt.figure()
+plt.plot(red[:,0],red[:,1],'rs',blue[:,0],blue[:,1],'bs')
+plt.show()
