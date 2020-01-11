@@ -353,7 +353,7 @@ inputs,targets=get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.s
 inputs=np.array(inputs)
 targets=np.array(targets)
 inputs, targets = randomize(inputs, targets)
-
+'''
 print("Start")
 
 N = inputs.shape[0]
@@ -368,10 +368,13 @@ L = generateLMatrix(K, D)
 print("computing L new")
 L_new = transformL(L, "polynomial")
 print("computing D new")
-D_new = transformDMatrix(L, L_new)
+D_new = transformDMatrix(L)
 print("computing K new")
 K_new = transformKMatrix(D_new,L_new)
 print("Kernel done")
+'''
+k = 2
+automatic_selection_news(input, targets)
 # plt.plot(V[:,0],V[:,1],'rs')
 
 #standard_prediction, prediction = TestResults(inputs, targets, K_new, 1000)  # Test the results
@@ -381,31 +384,3 @@ testNews(inputs,targets,K_new)
 #plotOutput(inputs, standard_prediction)
 #plotOutput(inputs, prediction)
 #plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-#print(np.shape(K_new))
-# Output the new points representation (does only works with 3D points)
-#fig = plt.figure()
-#ax = fig.add_subplot(111, projection='3d')
-#
-##ax.scatter(V.transpose()[0], V.transpose()[1],V.transpose()[2])
-#ax.scatter(V.transpose()[0], V.transpose()[1])
-#ax.set_xlabel('X Label')
-#ax.set_ylabel('Y Label')
-#ax.set_zlabel('Z Label')
-# plt.show()
-
-# plt.figure()
-# plt.plot(inputs.transpose()[0],inputs.transpose()[1],'rs')
-# plt.show()
-# plt.plot(np.array(V.transpose()[0])[0],np.array(V.transpose()[1])[0],'bs')
