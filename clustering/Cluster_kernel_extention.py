@@ -174,7 +174,20 @@ def transfer_function(L, k, function):
         w, V = np.linalg.eig(L)
         w_cut = np.sort(w)[k - 1]
         w = np.diag(w)
-        w**t
+        w = w**t
+    if function == "polystep":
+        p = 2
+        q = 2
+        r = 2
+        w, V = np.linalg.eig(L)
+        for i in range(w.shape[0]):
+            for j in range(w.shape[1]):
+                if w[i, j] <= r:
+                    w[i, j] = w[i, j]**p
+                else:
+                    w[i, j] = w[i, j]**q
+
+
     return w
 
 
@@ -237,7 +250,7 @@ def DigitTest(inputs,targets,results):
         train_points, train_targets, kernel_train, test_points, test_targets, kernel_test = generateSubset(inputs,targets,results,x+1)
         original = svm.SVC(kernel='linear').fit(train_points, train_targets)
         original_score[x]=original.score(test_points, test_targets)
-        
+
 
         new = svm.SVC(kernel='linear').fit(kernel_train, train_targets)
         kernel_score[x]=new.score(kernel_test, test_targets)
@@ -255,8 +268,7 @@ def testNews(inputs, targets, kernel):
     original_score=np.zeros(100)
     kernel_score=np.zeros(100)
     myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
-
-    for n in myrange: 
+    for n in myrange:
         print("\n\nUsing "+str(n)+" train points")
         for x in range(100): #run 100 times
             target_sum=0
@@ -265,18 +277,18 @@ def testNews(inputs, targets, kernel):
                 train_targets = np.take(targets,train_idx)
                 target_sum=sum(train_targets)
 
-            
+
             train_points = np.take(inputs,train_idx,axis=0)
             train_kernel = np.take(kernel, train_idx,axis=0)
 
             original = svm.SVC().fit(train_points, train_targets)
             original_score[x]=original.score(inputs, targets)
-            
-    
+
+
             new = svm.SVC(kernel='linear').fit(train_kernel, train_targets)
             kernel_score[x]=new.score(kernel, targets)
 
-        
+
         print("Average score of normal SVM:")
         print(np.average(original_score))
         print("Average score of cluster kernel:")
