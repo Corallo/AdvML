@@ -12,8 +12,8 @@ from sklearn import svm
 from digit_datasets import generateDigitsDataset
 from new_dataset import get_20newsgroup_tf_idf
 import progressbar
-import time
 from sklearn.cluster import KMeans
+
 def radialBasisFunctionKernel(x, y, sigma=0.55):
     return np.exp(-np.linalg.norm(x - y) / (2 * sigma**2))
 
@@ -75,7 +75,7 @@ def TestResults(inputs, targets, results, iterations):
     print("Score:")
     print(new.score(kernel_test, test_targets))
 
-   # print("Predicion output with post-kernel features:")
+    # print("Predicion output with post-kernel features:")
     #prediction = new.predict(kernel_test)
     #print(prediction)
     #print("Correct output:")
@@ -84,7 +84,7 @@ def TestResults(inputs, targets, results, iterations):
     return (original.predict(inputs), new.predict(results))
 
 
-def generateAffinityMatrix(inputs):
+def generateAffinityMatrix(inputs, sigma):
     N = inputs.shape[0]
     affinity_matrix = np.ones((N, N))
 
@@ -92,7 +92,7 @@ def generateAffinityMatrix(inputs):
         for idx_col in range(N):
             if idx_row != idx_col:
                 affinity_matrix[idx_row, idx_col] = radialBasisFunctionKernel(
-                    inputs[idx_row], inputs[idx_col])
+                    inputs[idx_row], inputs[idx_col], sigma)
 
     return affinity_matrix
 
@@ -142,70 +142,61 @@ def plotOutput(inputs, prediction):
     plt.plot(red[:, 0], red[:, 1], 'rs', blue[:, 0], blue[:, 1], 'bs')
 
 
-def transfer_function(L, k, function, param = []):
-    t = 5
-    w, V = np.linalg.eig(L)
-    w = np.diag(w)
-    if function == "linear":
-        return w
-    if function == "step":
-        w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
-        w = np.diag(w)
-        for i in range(w.shape[0]):
-            for j in range(w.shape[1]):
-                if w[i, j] >= w_cut:
-                    w[i, j] = 1
-                else:
-                    w[i, j] = 0
+def transfer_function(w, transfer_function_name, number_eig_values = 0, q_polystep=2, p_polystep=0.5, t=5):        
+    if transfer_function_name == "linear":
+        w_transformed = w 
+    elif transfer_function_name == "polynomial":
+        w_transformed = np.power(w,t)      
+    elif transfer_function_name == "step":
+        ## the greatest number_eig_values will be set to 1
+        idx_greatest_w = np.argsort(w)[-number_eig_values:]
+        w_transformed = np.zeros(len(w))
+        w_transformed[idx_greatest_w] = 1
+#    elif transfer_function_name == "linear step":
+#        w_cut = np.sort(w)[k - 1]
+#        for i in range(w.shape[0]):
+#            for j in range(w.shape[1]):
+#                if w_transformed[i, j] >= w_cut:
+#                    w_transformed[i, j] = w_transformed[i, j]
+#                else:
+#                    w_transformed[i, j] = 0  
+    elif transfer_function_name == "polystep":
+        
+        idx_greatest_w = np.argsort(w)[-number_eig_values:]
+        idx_remaining_w = np.argsort(w)[:-number_eig_values]
+        w_transformed = np.zeros(len(w))
+        
+        w_transformed[idx_greatest_w] = w[idx_greatest_w] ** q_polystep
+        w_transformed[idx_remaining_w] = w[idx_remaining_w] ** p_polystep
 
-    if function == "linear step":
-        w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
-        w = np.diag(w)
-        for i in range(w.shape[0]):
-            for j in range(w.shape[1]):
-                if w[i, j] >= w_cut:
-                    w[i, j] = w[i, j]
-                else:
-                    w[i, j] = 0
-
-    if function == "polynomial":
-        w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
-        w = np.diag(w)
-        w = w**t
-    if function == "polystep":
-        p = 1/2
-        q = 2
-        r = param[0]
-        w, V = np.linalg.eig(L)
-        w = np.diag(w)
-        for i in range(len(V)):
-            if i <= r:
-                w[i, i] = w[i, i]**p
-            else:
-                w[i, i] = w[i, i]**q
+    w_transformed_matrix = np.diag(w_transformed)
+    
+    return w_transformed_matrix
 
 
-    return w
-
-
-def transformL(L, transfer_function_name, param=[]):
+def transformL(L, transfer_function_name, number_eig_values = 0, q_polystep=2, p_polystep=0.5, t=5):
     w, U = np.linalg.eig(L)
-    L_new =  U.dot(transfer_function(L,k,transfer_function_name, param = param)).dot(np.linalg.inv(U))
-    return L_new.real
+    
+    w_transformed = transfer_function(w, transfer_function_name, number_eig_values, q_polystep, p_polystep, t)
+    
+    L_new =  U @ w_transformed @ np.linalg.inv(U)
+    
+    return L_new
 
-def transformDMatrix(L, L_new):
-	D_new = np.zeros((L.shape))
-	for i in range(D_new.shape[0]):
-		D_new[i,i] = 1/L_new[i,i]
-	return D_new
 
-def transformKMatrix(D_new,L_new):
-	K_new = fractional_matrix_power(D_new,0.5).dot(L_new).dot(fractional_matrix_power(D_new,0.5))
+def transformDMatrix(L_new):
+    D_new = np.zeros(L_new.shape)
+    diag_L_new = np.diagonal(L_new)
+    D_new = np.diag(1/diag_L_new)	
+    return D_new
+
+
+def transformKMatrix(D_new, L_new):
+	K_new = fractional_matrix_power(D_new, 0.5).dot(L_new).dot(fractional_matrix_power(D_new, 0.5))
 	return K_new
-def generateSubset(inputs,targets,results,x):
+
+
+def generateSubset(inputs, targets, results, x):
     train_input=inputs[40*(x-1):40*x,:]
     test_input=np.delete(inputs,slice(40*(x-1),40*x),0)
     train_targets = targets[40*(x-1):40*x]
@@ -213,6 +204,8 @@ def generateSubset(inputs,targets,results,x):
     train_results = results[40*(x-1):40*x,:]
     test_results = np.delete(results,slice(40*(x-1),40*x),0)
     return train_input, train_targets, train_results, test_input,test_targets, test_results
+
+
 def TestWithSVM(inputs,targets,results):
     train_points, test_points = partition(inputs, 0.2)
     train_targets, test_targets = partition(targets, 0.2)
@@ -241,7 +234,7 @@ def TestWithSVM(inputs,targets,results):
 def computeScore(out,targets):
     return np.sum(np.where(out==targets,1,0))/len(targets)
 
-def DigitTest(inputs,targets,results):
+def DigitTest(inputs, targets, results):
     print("Testing...")
     original_score=np.zeros(50)
     kernel_score=np.zeros(50)
@@ -265,8 +258,8 @@ def DigitTest(inputs,targets,results):
 
 def testNews(inputs, targets, kernel):
     print("Testing..")
-    original_score=np.zeros(100)
-    kernel_score=np.zeros(100)
+    original_score = np.zeros(100)
+    kernel_score = np.zeros(100)
     myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
     for n in myrange:
         print("\n\nUsing "+str(n)+" train points")
@@ -293,62 +286,12 @@ def testNews(inputs, targets, kernel):
         print(np.average(original_score))
         print("Average score of cluster kernel:")
         print(np.average(kernel_score))
-def psi_function(x):
-    if x > 0:
-        return 1
-    else:
-        return 0
-def automatic_selection_news(input, target):
-    zero = np.array(np.where(targets==0))[0]
-    one =np.array( np.where(targets==1))[0]
-
-    train_zero=np.array(np.random.choice(zero,int(8)))
-    train_one =np.array(np.random.choice(one, int(8)))
-
-    train_idx =np.concatenate((train_zero,train_one))
-
-    np.random.shuffle(train_idx)
-    train_targets = np.take(targets,train_idx)
-    train_points = np.take(inputs,train_idx,axis=0)
-    span_estimates = []
-    for p in range(4, 30, 3):
-        N = inputs.shape[0]
-        #print(N)
-        k = 2  # Desired NUMBER OF CLUSTERS (small k)
-        print("computing K")
-        K = generateAffinityMatrix(inputs)  # (uppercase K) STEP 1
-        print("computing D")
-        D = generateDMatrix(K)  # STEP 2
-        print("computing L")
-        L = generateLMatrix(K, D)
-        print("computing L new")
-        L_new = transformL(L, "polystep", param=[p])
-        print("computing D new")
-        D_new = transformDMatrix(L, L_new)
-        print("computing K new")
-        K_new = transformKMatrix(D_new,L_new)
-        train_kernel = np.take(K_new, train_idx,axis=0)
-        new = svm.SVC(kernel='linear').fit(train_kernel, train_targets)
-
-        alphas = np.abs(new.dual_coef_)[0]
-        T = 0.0
-
-        for idx, p in enumerate(new.support_):
-                T = T + psi_function((alphas[idx]*K_new[p,p]) -1)
-        T = T/N
-        print(T)
-        span_estimates.append(T)
-    X = np.arange(4, 30, 3)
-    plt.plot(X, span_estimates)
-    plt.show()
-
-    return 0
 
 #inputs, targets = make_circles(n_samples=200, shuffle=True, noise=None, random_state=150, factor=0.4)
 # inputs,targets=loadDataset('irisX_small.txt','irisY_small.txt') load data from file
 # inputs,targets=generateDataset()
-#inputs,targets=generateDigitsDataset()
-inputs,targets=get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
+inputs,targets=generateDigitsDataset()
+#inputs,targets=get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
 #inputs,targets=load_digits(n_class=10, return_X_y=True)
 inputs=np.array(inputs)
 targets=np.array(targets)
@@ -360,24 +303,29 @@ N = inputs.shape[0]
 #print(N)
 k = 2  # Desired NUMBER OF CLUSTERS (small k)
 print("computing K")
-K = generateAffinityMatrix(inputs)  # (uppercase K) STEP 1
+K = generateAffinityMatrix(inputs, 0.5)  # (uppercase K) STEP 1
 print("computing D")
 D = generateDMatrix(K)  # STEP 2
 print("computing L")
 L = generateLMatrix(K, D)
 print("computing L new")
-L_new = transformL(L, "polynomial")
+L_new = transformL(L, "polynomial")  #number_eigen_values
 print("computing D new")
-D_new = transformDMatrix(L, L_new)
+D_new = transformDMatrix(L_new)
 print("computing K new")
 K_new = transformKMatrix(D_new,L_new)
 print("Kernel done")
+
+
+
+DigitTest(inputs, targets, results)
 # plt.plot(V[:,0],V[:,1],'rs')
 
 #standard_prediction, prediction = TestResults(inputs, targets, K_new, 1000)  # Test the results
 #standard_prediction, prediction = TestWithSVM(inputs,targets,K_new)
 #FinalTest(inputs,targets,K_new)
-testNews(inputs,targets,K_new)
+
+#testNews(inputs,targets,K_new)
 #plotOutput(inputs, standard_prediction)
 #plotOutput(inputs, prediction)
 #plt.show()
