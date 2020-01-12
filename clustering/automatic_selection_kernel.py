@@ -301,6 +301,7 @@ def psi_function(x):
 def automatic_selection_news(input, target):
     zero = np.array(np.where(targets==0))[0]
     one =np.array( np.where(targets==1))[0]
+    np.random.seed(123)
 
     train_zero=np.array(np.random.choice(zero,int(8)))
     train_one =np.array(np.random.choice(one, int(8)))
@@ -310,7 +311,9 @@ def automatic_selection_news(input, target):
     np.random.shuffle(train_idx)
     train_targets = np.take(targets,train_idx)
     train_points = np.take(inputs,train_idx,axis=0)
+    test_targets = np.delete(targets, train_idx, axis = 0)
     span_estimates = []
+    test_errors = []
     for p in range(4, 30, 3):
         N = inputs.shape[0]
         #print(N)
@@ -328,18 +331,31 @@ def automatic_selection_news(input, target):
         print("computing K new")
         K_new = transformKMatrix(D_new,L_new)
         train_kernel = np.take(K_new, train_idx,axis=0)
-        new = svm.SVC(kernel='linear').fit(train_kernel, train_targets)
+        train_kernel = np.take(train_kernel, train_idx, axis=1)
 
-        alphas = np.abs(new.dual_coef_)[0]
+        test_kernel= np.delete(K_new, train_idx, axis=0)
+        test_kernel= np.take(test_kernel,train_idx,axis=1)
+
+        print(train_kernel.shape)
+        new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
+        test_errors.append(1 - (new.score(test_kernel, test_targets)))
+        alphas = np.abs(new.dual_coef_[0])
         T = 0.0
-
+        K = np.zeros((new.support_.shape[0], new.support_.shape[0]))
+        for idx, x in enumerate(new.support_):
+            for idy, y in enumerate(new.support_):
+                K[idx, idy] = np.dot(inputs[x,:], inputs[y,:])
         for idx, p in enumerate(new.support_):
+                print(alphas[idx]*K_new[p,p])
+                #T = T + psi_function((alphas[idx]/np.linalg.inv(K)[idx, idx]) - 1)
                 T = T + psi_function((alphas[idx]*K_new[p,p]) -1)
-        T = T/N
+                #T = T + alphas[idx]*K_new[p,p]
+        T = T/16
         print(T)
         span_estimates.append(T)
     X = np.arange(4, 30, 3)
     plt.plot(X, span_estimates)
+    plt.plot(X, test_errors)
     plt.show()
 
     return 0
@@ -380,7 +396,7 @@ automatic_selection_news(input, targets)
 #standard_prediction, prediction = TestResults(inputs, targets, K_new, 1000)  # Test the results
 #standard_prediction, prediction = TestWithSVM(inputs,targets,K_new)
 #FinalTest(inputs,targets,K_new)
-testNews(inputs,targets,K_new)
+#testNews(inputs,targets,K_new)
 #plotOutput(inputs, standard_prediction)
 #plotOutput(inputs, prediction)
 #plt.show()
