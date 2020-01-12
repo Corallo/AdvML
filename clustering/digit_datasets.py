@@ -65,7 +65,10 @@ def generateBalancedDataset():
 	x,y=generateDigitsDataset()
 	x,y =preProcessDigits(x,y)
 	return x,y
-
+def generateUnbalancedDataset():
+	x,y=generateDigitsDataset()
+	y=np.where(y>=5,1,0)
+	return x[0:2000,:],y[0:2000]
 
 
 
