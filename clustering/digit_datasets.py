@@ -9,6 +9,7 @@ Created on Wed Jan  8 13:59:55 2020
 
 import pandas as pd
 import numpy as np
+
 def generateDigitsDataset():
 	numbers_train = pd.read_csv("numbers_train.csv", sep= " ", header = None).iloc[:,:257]
 	
