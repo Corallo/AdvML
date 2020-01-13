@@ -298,7 +298,7 @@ def psi_function(x):
         return 1
     else:
         return 0
-def automatic_selection_news(input, target):
+def automatic_selection_news(inputs, target):
     zero = np.array(np.where(targets==0))[0]
     one =np.array( np.where(targets==1))[0]
     np.random.seed(123)
@@ -314,7 +314,7 @@ def automatic_selection_news(input, target):
     test_targets = np.delete(targets, train_idx, axis = 0)
     span_estimates = []
     test_errors = []
-    for p in range(4, 30, 3):
+    for p in range(4, 20, 3):
         N = inputs.shape[0]
         #print(N)
         k = 2  # Desired NUMBER OF CLUSTERS (small k)
@@ -336,24 +336,21 @@ def automatic_selection_news(input, target):
         test_kernel= np.delete(K_new, train_idx, axis=0)
         test_kernel= np.take(test_kernel,train_idx,axis=1)
 
-        print(train_kernel.shape)
+
         new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
         test_errors.append(1 - (new.score(test_kernel, test_targets)))
-        alphas = np.abs(new.dual_coef_[0])
+        alphas = np.abs(new.dual_coef_)[0]
+        print(alphas)
+        print("//////////////////")
+        print(new.support_vectors_)
         T = 0.0
-        K = np.zeros((new.support_.shape[0], new.support_.shape[0]))
-        for idx, x in enumerate(new.support_):
-            for idy, y in enumerate(new.support_):
-                K[idx, idy] = np.dot(inputs[x,:], inputs[y,:])
         for idx, p in enumerate(new.support_):
-                print(alphas[idx]*K_new[p,p])
-                #T = T + psi_function((alphas[idx]/np.linalg.inv(K)[idx, idx]) - 1)
-                T = T + psi_function((alphas[idx]*K_new[p,p]) -1)
-                #T = T + alphas[idx]*K_new[p,p]
-        T = T/16
+                T = T + psi_function((alphas[p]*train_kernel[p, p]) -1)
+
+        T = T/(16)
         print(T)
         span_estimates.append(T)
-    X = np.arange(4, 30, 3)
+    X = np.arange(4, 20, 3)
     plt.plot(X, span_estimates)
     plt.plot(X, test_errors)
     plt.show()
@@ -390,7 +387,7 @@ K_new = transformKMatrix(D_new,L_new)
 print("Kernel done")
 '''
 k = 2
-automatic_selection_news(input, targets)
+automatic_selection_news(inputs, targets)
 # plt.plot(V[:,0],V[:,1],'rs')
 
 #standard_prediction, prediction = TestResults(inputs, targets, K_new, 1000)  # Test the results
