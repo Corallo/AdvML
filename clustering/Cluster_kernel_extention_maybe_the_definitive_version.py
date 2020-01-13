@@ -150,15 +150,14 @@ def transfer_function(L, k, function, param = []):
     if function == "linear":
         return w
     if function == "step":
-        w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
-        w = np.diag(w)
+        r = param[0]
+        w_diagonal = np.diagonal(w)
+        idx_greatest_w = np.argsort(w_diagonal)[-r:]
         for i in range(w.shape[0]):
-            for j in range(w.shape[1]):
-                if w[i, j] >= w_cut:
-                    w[i, j] = 1
+                if i in idx_greatest_w.tolist():
+                    w[i, i] = 1
                 else:
-                    w[i, j] = 0
+                    w[i, i] = 0
 
     if function == "linear step":
         w, V = np.linalg.eig(L)
@@ -331,7 +330,7 @@ def automatic_selection_news(inputs, target):
     print("computing L")
     L = generateLMatrix(K, D)
     print("computing L new")
-    L_new = transformL(L, "polystep", param=[10])
+    L_new = transformL(L, "step", param=[10])
     print("computing D new")
     D_new = transformDMatrix(L, L_new)
     print("computing K new")
