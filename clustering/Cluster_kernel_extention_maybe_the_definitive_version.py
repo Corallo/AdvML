@@ -5,11 +5,12 @@ from sklearn.datasets import load_digits
 from sklearn.linear_model import LogisticRegression
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import matplotlib.pyplot as plt
+import matplotlib
 from scipy.linalg import fractional_matrix_power
 from scipy.sparse.linalg import eigs
 from sklearn.datasets import make_circles
 from sklearn import svm
-from digit_datasets import *
+#from digit_datasets import *
 from new_dataset import get_20newsgroup_tf_idf
 import progressbar
 import time
@@ -144,7 +145,7 @@ def plotOutput(inputs, prediction):
 
 
 def transfer_function(L, k, function, param = []):
-    t = 5
+    t = 2
     w, V = np.linalg.eig(L)
     w = np.diag(w)
     if function == "linear":
@@ -160,33 +161,31 @@ def transfer_function(L, k, function, param = []):
                     w[i, i] = 0
 
     if function == "linear step":
-        w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
-        w = np.diag(w)
+        r = param[0]
+        w_diagonal = np.diagonal(w)
+        idx_greatest_w = np.argsort(w_diagonal)[-r:]
         for i in range(w.shape[0]):
-            for j in range(w.shape[1]):
-                if w[i, j] >= w_cut:
-                    w[i, j] = w[i, j]
+                if i in idx_greatest_w.tolist():
+                    w[i, i] = w[i, i]
                 else:
-                    w[i, j] = 0
+                    w[i, i] = 0
 
     if function == "polynomial":
         w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
         w = np.diag(w)
         w = w**t
     if function == "polystep":
         p = 1/2
         q = 2
         r = param[0]
-        w, V = np.linalg.eig(L)
-        w = np.diag(w)
-        for i in range(len(V)):
-            if i <= r:
+        w_diagonal = np.diagonal(w)
+
+        idx_greatest_w = np.argsort(w_diagonal)[-r:]
+        for i in range(w.shape[0]):
+            if i in idx_greatest_w.tolist():
                 w[i, i] = w[i, i]**p
             else:
                 w[i, i] = w[i, i]**q
-
 
     return w
 
@@ -278,13 +277,16 @@ def testNews(inputs, targets, kernel):
     print(targets)
     original_score = np.zeros(100)
     kernel_score = np.zeros(100)
-    myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
+    myrange=range(100,900,100) # test with different number of test_points (2,4,8,16 ..)
+    output_mean=[0]*len(myrange)
+    output_std=[0]*len(myrange)
+    i=0
     for n in myrange:
         print("\n\nUsing "+str(n)+" train points")
         for x in range(100): #run 100 times
             target_sum=0
             while(target_sum!=n/2): #be sure that you have selected at least 1 point for each cluster
-                train_idx=random.sample(range(0, len(targets)), n)
+                train_idx=random.sample(range(0, int(len(targets)/2)), n)
                 train_targets = np.take(targets,train_idx)
                 target_sum=sum(train_targets)
 
@@ -299,18 +301,20 @@ def testNews(inputs, targets, kernel):
             test_kernel= np.delete(kernel, train_idx, axis=0)
             test_kernel= np.take(test_kernel,train_idx,axis=1)
 
-            original = svm.SVC(kernel='rbf',gamma=1.65).fit(train_points, train_targets)
-            original_score[x]=original.score(test_points, test_targets)
+            #original = svm.SVC(kernel='rbf',gamma=1.65).fit(train_points, train_targets)
+            #original_score[x]=original.score(test_points, test_targets)
 
 
             new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
             kernel_score[x]=new.score(test_kernel, test_targets)
 
 
-        print("Average score of normal SVM:")
-        print(np.average(original_score))
+        output_mean[i]=np.average([1-x for x in kernel_score])
+        output_std[i]=np.std([1-x for x in kernel_score])
+        i+=1
         print("Average score of cluster kernel:")
         print(np.average(kernel_score))
+    return output_mean, output_std
 
 def psi_function(x):
     if x > 0:
@@ -318,8 +322,8 @@ def psi_function(x):
     else:
         return 0
 def automatic_selection_news(inputs, target):
-    
-
+    print(len(inputs))
+    tfs=['linear','step','polynomial','polystep']
     N = inputs.shape[0]
     #print(N)
     k = 2  # Desired NUMBER OF CLUSTERS (small k)
@@ -329,14 +333,27 @@ def automatic_selection_news(inputs, target):
     D = generateDMatrix(K)  # STEP 2
     print("computing L")
     L = generateLMatrix(K, D)
-    print("computing L new")
-    L_new = transformL(L, "step", param=[10])
-    print("computing D new")
-    D_new = transformDMatrix(L, L_new)
-    print("computing K new")
-    K_new = transformKMatrix(D_new,L_new)
+    plt.figure()
+    for tf in tfs:
+
+        print("computing L new with "+ tf)
+        L_new = transformL(L, tf, param=[10])
+        print("computing D new")
+        D_new = transformDMatrix(L, L_new)
+        print("computing K new")
+        K_new = transformKMatrix(D_new,L_new)
+        avg, std= testNews(inputs,target,K_new)
         
-    testNews(inputs,target,K_new)
+        
+
+        plt.errorbar(range(100,900,100), avg, yerr=std)
+        plt.xticks(range(100,900,100))
+        plt.xscale('log', basex=2)
+        plt.xlabel("Number of train points")
+        plt.ylabel("Error")
+    plt.legend(tfs)
+    plt.show()
+
     #DigitTest(inputs,target,K_new)
    #     train_kernel = np.take(K_new, train_idx,axis=0)
    #     train_kernel = np.take(train_kernel, train_idx, axis=1)
