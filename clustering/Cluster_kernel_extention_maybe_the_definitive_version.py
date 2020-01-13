@@ -9,11 +9,12 @@ from scipy.linalg import fractional_matrix_power
 from scipy.sparse.linalg import eigs
 from sklearn.datasets import make_circles
 from sklearn import svm
-from digit_datasets import generateDigitsDataset
+from digit_datasets import *
 from new_dataset import get_20newsgroup_tf_idf
 import progressbar
 import time
 from sklearn.cluster import KMeans
+
 def radialBasisFunctionKernel(x, y, sigma=0.55):
     return np.exp(-np.linalg.norm(x - y) / (2 * sigma**2))
 
@@ -149,15 +150,14 @@ def transfer_function(L, k, function, param = []):
     if function == "linear":
         return w
     if function == "step":
-        w, V = np.linalg.eig(L)
-        w_cut = np.sort(w)[k - 1]
-        w = np.diag(w)
+        r = param[0]
+        w_diagonal = np.diagonal(w)
+        idx_greatest_w = np.argsort(w_diagonal)[-r:]
         for i in range(w.shape[0]):
-            for j in range(w.shape[1]):
-                if w[i, j] >= w_cut:
-                    w[i, j] = 1
+                if i in idx_greatest_w.tolist():
+                    w[i, i] = 1
                 else:
-                    w[i, j] = 0
+                    w[i, i] = 0
 
     if function == "linear step":
         w, V = np.linalg.eig(L)
@@ -205,14 +205,23 @@ def transformDMatrix(L, L_new):
 def transformKMatrix(D_new,L_new):
 	K_new = fractional_matrix_power(D_new,0.5).dot(L_new).dot(fractional_matrix_power(D_new,0.5))
 	return K_new
-def generateSubset(inputs,targets,results,x):
-    train_input=inputs[40*(x-1):40*x,:]
-    test_input=np.delete(inputs,slice(40*(x-1),40*x),0)
-    train_targets = targets[40*(x-1):40*x]
-    test_targets= np.delete(targets,slice(40*(x-1),40*x),0)
-    train_results = results[40*(x-1):40*x,:]
-    test_results = np.delete(results,slice(40*(x-1),40*x),0)
-    return train_input, train_targets, train_results, test_input,test_targets, test_results
+def generateSubset(inputs, targets, kernel, x):
+    test_idx = range(40 * (x - 1), 40 * x)
+
+    train_input = inputs[test_idx, :]
+    test_input  = np.delete(inputs,test_idx,0)
+    
+    train_targets = targets[test_idx]
+    test_targets= np.delete(targets,test_idx,0)
+    
+
+    train_kernel = np.take(kernel,test_idx,axis=0)
+    train_kernel = np.take(train_kernel,test_idx,axis=1)
+
+    test_kernel = np.delete(kernel,test_idx,0)
+    test_kernel = test_kernel[:,test_idx]
+
+    return train_input, train_targets, train_kernel, test_input,test_targets, test_kernel
 def TestWithSVM(inputs,targets,results):
     train_points, test_points = partition(inputs, 0.2)
     train_targets, test_targets = partition(targets, 0.2)
@@ -241,18 +250,18 @@ def TestWithSVM(inputs,targets,results):
 def computeScore(out,targets):
     return np.sum(np.where(out==targets,1,0))/len(targets)
 
-def DigitTest(inputs,targets,results):
+def DigitTest(inputs, targets, results):
     print("Testing...")
     original_score=np.zeros(50)
     kernel_score=np.zeros(50)
     for x in progressbar.progressbar(range(50)):
-        #print(x)
+        #print(x)   
         train_points, train_targets, kernel_train, test_points, test_targets, kernel_test = generateSubset(inputs,targets,results,x+1)
-        original = svm.SVC(kernel='linear').fit(train_points, train_targets)
+        original = svm.SVC(gamma=0.02).fit(train_points, train_targets)
         original_score[x]=original.score(test_points, test_targets)
 
 
-        new = svm.SVC(kernel='linear').fit(kernel_train, train_targets)
+        new = svm.SVC(kernel='precomputed').fit(kernel_train, train_targets)
         kernel_score[x]=new.score(kernel_test, test_targets)
 
     print("\n")
@@ -264,96 +273,98 @@ def DigitTest(inputs,targets,results):
     return original_score, kernel_score
 
 def testNews(inputs, targets, kernel):
+    random.seed(123)
     print("Testing..")
-    original_score=np.zeros(100)
-    kernel_score=np.zeros(100)
+    print(targets)
+    original_score = np.zeros(100)
+    kernel_score = np.zeros(100)
     myrange=[2**x for x in range(1,8)] # test with different number of test_points (2,4,8,16 ..)
     for n in myrange:
         print("\n\nUsing "+str(n)+" train points")
         for x in range(100): #run 100 times
             target_sum=0
-            while(target_sum==n or target_sum==0): #be sure that you have selected at least 1 point for each cluster
+            while(target_sum!=n/2): #be sure that you have selected at least 1 point for each cluster
                 train_idx=random.sample(range(0, len(targets)), n)
                 train_targets = np.take(targets,train_idx)
                 target_sum=sum(train_targets)
 
-
+            test_targets = np.delete(targets,train_idx)
+            
             train_points = np.take(inputs,train_idx,axis=0)
+            test_points = np.delete(inputs,train_idx,axis=0)
+            
             train_kernel = np.take(kernel, train_idx,axis=0)
+            train_kernel = np.take(train_kernel, train_idx, axis=1)
 
-            original = svm.SVC().fit(train_points, train_targets)
-            original_score[x]=original.score(inputs, targets)
+            test_kernel= np.delete(kernel, train_idx, axis=0)
+            test_kernel= np.take(test_kernel,train_idx,axis=1)
+
+            original = svm.SVC(kernel='rbf',gamma=1.65).fit(train_points, train_targets)
+            original_score[x]=original.score(test_points, test_targets)
 
 
-            new = svm.SVC(kernel='linear').fit(train_kernel, train_targets)
-            kernel_score[x]=new.score(kernel, targets)
+            new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
+            kernel_score[x]=new.score(test_kernel, test_targets)
 
 
         print("Average score of normal SVM:")
         print(np.average(original_score))
         print("Average score of cluster kernel:")
         print(np.average(kernel_score))
+
 def psi_function(x):
     if x > 0:
         return 1
     else:
         return 0
 def automatic_selection_news(inputs, target):
-    zero = np.array(np.where(targets==0))[0]
-    one =np.array( np.where(targets==1))[0]
-    np.random.seed(123)
+    
 
-    train_zero=np.array(np.random.choice(zero,int(8)))
-    train_one =np.array(np.random.choice(one, int(8)))
-
-    train_idx =np.concatenate((train_zero,train_one))
-
-    np.random.shuffle(train_idx)
-    train_targets = np.take(targets,train_idx)
-    train_points = np.take(inputs,train_idx,axis=0)
-    test_targets = np.delete(targets, train_idx, axis = 0)
-    span_estimates = []
-    test_errors = []
-    for p in range(4, 19, 3):
-        N = inputs.shape[0]
-        #print(N)
-        k = 2  # Desired NUMBER OF CLUSTERS (small k)
-        print("computing K")
-        K = generateAffinityMatrix(inputs)  # (uppercase K) STEP 1
-        print("computing D")
-        D = generateDMatrix(K)  # STEP 2
-        print("computing L")
-        L = generateLMatrix(K, D)
-        print("computing L new")
-        L_new = transformL(L, "polystep", param=[p])
-        print("computing D new")
-        D_new = transformDMatrix(L, L_new)
-        print("computing K new")
-        K_new = transformKMatrix(D_new,L_new)
-        train_kernel = np.take(K_new, train_idx,axis=0)
-        train_kernel = np.take(train_kernel, train_idx, axis=1)
-
-        test_kernel= np.delete(K_new, train_idx, axis=0)
-        test_kernel= np.take(test_kernel,train_idx,axis=1)
-
-
-        new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
-        test_errors.append(1 - (new.score(test_kernel, test_targets)))
-        alphas = np.abs(new.dual_coef_)[0]
-        print(len(alphas))
-        print("//////////////////")
-        print(len(new.support_vectors_))
-        T = 0.0
-        for p in new.support_:
-                T = T + psi_function((alphas[p]*train_kernel[p, p]) -1)
-
-        T = T/(16)
-        print(T)
-        span_estimates.append(T)
-    X = np.arange(4, 19, 3)
-    plt.plot(X, span_estimates)
-    plt.plot(X, test_errors)
-    plt.show()
+    N = inputs.shape[0]
+    #print(N)
+    k = 2  # Desired NUMBER OF CLUSTERS (small k)
+    print("computing K")
+    K = generateAffinityMatrix(inputs)  # (uppercase K) STEP 1
+    print("computing D")
+    D = generateDMatrix(K)  # STEP 2
+    print("computing L")
+    L = generateLMatrix(K, D)
+    print("computing L new")
+    L_new = transformL(L, "step", param=[10])
+    print("computing D new")
+    D_new = transformDMatrix(L, L_new)
+    print("computing K new")
+    K_new = transformKMatrix(D_new,L_new)
+        
+    testNews(inputs,target,K_new)
+    #DigitTest(inputs,target,K_new)
+   #     train_kernel = np.take(K_new, train_idx,axis=0)
+   #     train_kernel = np.take(train_kernel, train_idx, axis=1)
+#
+#   #     test_kernel= np.delete(K_new, train_idx, axis=0)
+#   #     test_kernel= np.take(test_kernel,train_idx,axis=1)
+#
+#   #     print(train_kernel.shape)
+#   #     new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
+#   #     test_errors.append(1 - (new.score(test_kernel, test_targets)))
+#   #     alphas = np.abs(new.dual_coef_[0])
+#   #     T = 0.0
+#   #     K = np.zeros((new.support_.shape[0], new.support_.shape[0]))
+#   #     for idx, x in enumerate(new.support_):
+#   #         for idy, y in enumerate(new.support_):
+#   #             K[idx, idy] = np.dot(inputs[x,:], inputs[y,:])
+#   #     for idx, p in enumerate(new.support_):
+#   #             print(alphas[idx]*K_new[p,p])
+#   #             #T = T + psi_function((alphas[idx]/np.linalg.inv(K)[idx, idx]) - 1)
+#   #             T = T + psi_function((alphas[idx]*K_new[p,p]) -1)
+#   #             #T = T + alphas[idx]*K_new[p,p]
+#   #     T = T/16
+#   #     print(T)
+#   #     span_estimates.append(T)
+#   # X = np.arange(4, 30, 3)
+#   # plt.plot(X, span_estimates)
+#   # plt.plot(X, test_errors)
+   # plt.show()
 
     return 0
 
@@ -361,11 +372,14 @@ def automatic_selection_news(inputs, target):
 # inputs,targets=loadDataset('irisX_small.txt','irisY_small.txt') load data from file
 # inputs,targets=generateDataset()
 #inputs,targets=generateDigitsDataset()
+
 inputs,targets=get_20newsgroup_tf_idf("all", ["comp.windows.x", "comp.sys.mac.hardware"], 7511)
+#inputs,targets=generateUnbalancedDataset()
+#inputs,targets=generateBalancedDataset()
 #inputs,targets=load_digits(n_class=10, return_X_y=True)
 inputs=np.array(inputs)
 targets=np.array(targets)
-inputs, targets = randomize(inputs, targets)
+#inputs, targets = randomize(inputs, targets)
 '''
 print("Start")
 
