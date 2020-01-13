@@ -314,7 +314,7 @@ def automatic_selection_news(inputs, target):
     test_targets = np.delete(targets, train_idx, axis = 0)
     span_estimates = []
     test_errors = []
-    for p in range(4, 20, 3):
+    for p in range(4, 19, 3):
         N = inputs.shape[0]
         #print(N)
         k = 2  # Desired NUMBER OF CLUSTERS (small k)
@@ -340,17 +340,17 @@ def automatic_selection_news(inputs, target):
         new = svm.SVC(kernel='precomputed').fit(train_kernel, train_targets)
         test_errors.append(1 - (new.score(test_kernel, test_targets)))
         alphas = np.abs(new.dual_coef_)[0]
-        print(alphas)
+        print(len(alphas))
         print("//////////////////")
-        print(new.support_vectors_)
+        print(len(new.support_vectors_))
         T = 0.0
-        for idx, p in enumerate(new.support_):
+        for p in new.support_:
                 T = T + psi_function((alphas[p]*train_kernel[p, p]) -1)
 
         T = T/(16)
         print(T)
         span_estimates.append(T)
-    X = np.arange(4, 20, 3)
+    X = np.arange(4, 19, 3)
     plt.plot(X, span_estimates)
     plt.plot(X, test_errors)
     plt.show()
@@ -361,7 +361,7 @@ def automatic_selection_news(inputs, target):
 # inputs,targets=loadDataset('irisX_small.txt','irisY_small.txt') load data from file
 # inputs,targets=generateDataset()
 #inputs,targets=generateDigitsDataset()
-inputs,targets=get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
+inputs,targets=get_20newsgroup_tf_idf("all", ["comp.windows.x", "comp.sys.mac.hardware"], 7511)
 #inputs,targets=load_digits(n_class=10, return_X_y=True)
 inputs=np.array(inputs)
 targets=np.array(targets)
