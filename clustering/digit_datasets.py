@@ -10,13 +10,12 @@ Created on Wed Jan  8 13:59:55 2020
 import pandas as pd
 import numpy as np
 
-np.random.seed(123)
-
+SEED = 123
 
 def generateDigitsDataset():
 	numbers_train = pd.read_csv("../data/numbers_train.csv", sep= " ", header = None).iloc[:,:257]
 	
-	training_samples = numbers_train.sample(3000,random_state=123)
+	training_samples = numbers_train.sample(3000,random_state=SEED)
 	
 	## CROSS VALIDATION C
 
@@ -38,7 +37,7 @@ def preProcessDigits(inputs,targets):
 		#tmp=np.array(tmp)
 		#print(tmp)
 		idx_numbers.append(tmp)
-	ratio=[40*len(x)/2000  for x in idx_numbers]
+	#ratio=[40*len(x)/2000  for x in idx_numbers]
 	#print(ratio)
 	X=np.zeros(2000)
 	c=0
@@ -65,7 +64,9 @@ def preProcessDigits(inputs,targets):
 
 	
 def generateBalancedDataset(multiclass=False):
+
     x,y=generateDigitsDataset()
+    
     x,y =preProcessDigits(x,y)
     if multiclass==False:
         y=np.where(y>=5,1,0)
