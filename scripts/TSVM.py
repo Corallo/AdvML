@@ -20,11 +20,13 @@ class TSVM(object):
         self.gamma = gamma
         self.C_labeled = C_labeled
         self.C_unlabeled = C_unlabeled
-        self.clf = svm.SVC(C=self.C_labeled, kernel=self.kernel, gamma=self.gamma)
+        self.clf = svm.SVC(C=self.C_labeled, kernel=self.kernel, gamma=self.gamma, probability=True)
         self.num_positives = num_positives
         
         self.C_unl_negative = 10**(-5)
         self.C_unl_positive = None 
+        
+        self.classes_ = None
         
         
     def load(self, model_path='./TSVM.model'):
@@ -103,7 +105,8 @@ class TSVM(object):
                     break
             self.C_unl_positive = min(2*self.C_unl_positive, self.C_unlabeled)
             self.C_unl_negative = min(2*self.C_unl_negative, self.C_unlabeled)
-            
+        # After fitting
+        self.classes_ = self.clf.classes_            
 
     def score(self, X, Y):
         '''
@@ -134,6 +137,9 @@ class TSVM(object):
                 np.array, shape:[n, ], n: numbers of samples
         '''
         return self.clf.predict(X)
+    
+    def predict_proba(self,X):
+        return self.clf.predict_proba(X)
 
     def save(self, path='./TSVM.model'):
         '''

@@ -51,7 +51,8 @@ def test_different_trials(inputs, targets, n_classes=2, n_trials=100, n_labeled_
         print("Trial " + str(n_trial) + ": error " + str(error) + " %")
         error_trials.append(error)
         
-        return error_trials
+    return error_trials
+    
 
 
 def train_tsvm_algorithm(inputs_labeled, targets_labeled, inputs_unlabeled, targets_unlabeled, weight_rbf = 5):
@@ -77,6 +78,7 @@ def train_tsvm_algorithm(inputs_labeled, targets_labeled, inputs_unlabeled, targ
         
         
 if __name__ == "__main__":
+    
     inputs, targets = get_20newsgroup_tf_idf("all", ["comp.os.ms-windows.misc", "comp.sys.mac.hardware"], 7511)
 
     targets = np.array(targets)

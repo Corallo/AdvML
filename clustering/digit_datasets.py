@@ -15,7 +15,7 @@ SEED = 123
 def generateDigitsDataset():
 	numbers_train = pd.read_csv("../data/numbers_train.csv", sep= " ", header = None).iloc[:,:257]
 	
-	training_samples = numbers_train.sample(3000,random_state=SEED)
+	training_samples = numbers_train.sample(3000,random_state=SEEDd)
 	
 	## CROSS VALIDATION C
 
