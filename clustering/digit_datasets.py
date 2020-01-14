@@ -10,8 +10,11 @@ Created on Wed Jan  8 13:59:55 2020
 import pandas as pd
 import numpy as np
 
+np.random.seed(123)
+
+
 def generateDigitsDataset():
-	numbers_train = pd.read_csv("numbers_train.csv", sep= " ", header = None).iloc[:,:257]
+	numbers_train = pd.read_csv("../data/numbers_train.csv", sep= " ", header = None).iloc[:,:257]
 	
 	training_samples = numbers_train.sample(3000,random_state=123)
 	
@@ -37,7 +40,6 @@ def preProcessDigits(inputs,targets):
 		idx_numbers.append(tmp)
 	ratio=[40*len(x)/2000  for x in idx_numbers]
 	#print(ratio)
-	np.random.seed(123)
 	X=np.zeros(2000)
 	c=0
 	for i in range(200):
@@ -63,9 +65,11 @@ def preProcessDigits(inputs,targets):
 
 	
 def generateBalancedDataset():
-	x,y=generateDigitsDataset()
-	x,y =preProcessDigits(x,y)
-	return x,y
+    x,y=generateDigitsDataset()
+    x,y =preProcessDigits(x,y)
+    y=np.where(y>=5,1,0)
+    return x,y
+
 def generateUnbalancedDataset():
 	x,y=generateDigitsDataset()
 	y=np.where(y>=5,1,0)
