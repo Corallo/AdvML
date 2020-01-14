@@ -64,16 +64,18 @@ def preProcessDigits(inputs,targets):
 
 
 	
-def generateBalancedDataset():
+def generateBalancedDataset(multiclass=False):
     x,y=generateDigitsDataset()
     x,y =preProcessDigits(x,y)
-    y=np.where(y>=5,1,0)
+    if multiclass==False:
+        y=np.where(y>=5,1,0)
     return x,y
 
-def generateUnbalancedDataset():
-	x,y=generateDigitsDataset()
-	y=np.where(y>=5,1,0)
-	return x[0:2000,:],y[0:2000]
+def generateUnbalancedDataset(multiclass=False):
+    x,y=generateDigitsDataset()
+    if multiclass == False:
+        y = np.where(y>=5,1,0)
+    return x[0:2000,:],y[0:2000]
 
 
 
