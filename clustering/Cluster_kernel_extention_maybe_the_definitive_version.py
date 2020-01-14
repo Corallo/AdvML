@@ -16,6 +16,7 @@ import progressbar
 import time
 from sklearn.cluster import KMeans
 
+
 def radialBasisFunctionKernel(x, y, sigma=0.55):
     return np.exp(-np.linalg.norm(x - y) / (2 * sigma**2))
 
@@ -204,6 +205,7 @@ def transformDMatrix(L, L_new):
 def transformKMatrix(D_new,L_new):
 	K_new = fractional_matrix_power(D_new,0.5).dot(L_new).dot(fractional_matrix_power(D_new,0.5))
 	return K_new
+
 def generateSubset(inputs, targets, kernel, x):
     test_idx = range(40 * (x - 1), 40 * x)
 
@@ -221,6 +223,7 @@ def generateSubset(inputs, targets, kernel, x):
     test_kernel = test_kernel[:,test_idx]
 
     return train_input, train_targets, train_kernel, test_input,test_targets, test_kernel
+
 def TestWithSVM(inputs,targets,results):
     train_points, test_points = partition(inputs, 0.2)
     train_targets, test_targets = partition(targets, 0.2)
